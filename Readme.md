@@ -8,7 +8,7 @@ BrainTGL operates on rs-fMRI data, which provides a time series of brain activit
 
 ## Repository Structure
 
-- `model/`: Contains the source code for the BrainTGL model implementation.
+- `model.py`: Contains the source code for the BrainTGL model implementation.
 - `README.md`: This file providing an overview of the repository.
 
 ## Requirements
@@ -16,7 +16,6 @@ BrainTGL operates on rs-fMRI data, which provides a time series of brain activit
 - Python 3.x
 - PyTorch
 - NumPy
-- Other dependencies listed in `requirements.txt`
 
 ## Usage
 
