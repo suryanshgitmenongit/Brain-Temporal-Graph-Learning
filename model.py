@@ -2,6 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class SlidingWindowPCC(nn.Module):
     def __init__(self, window_length, stride):
         super(SlidingWindowPCC, self).__init__()
@@ -30,53 +34,64 @@ class GraphAttentionPooling(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.linear = nn.Linear(input_size, output_size)
+        self.attention_weights = nn.Linear(output_size, 1)
 
     def forward(self, input_data):
         # input_data shape: (batch_size, num_windows, num_features, num_features)
         batch_size, num_windows, num_features, _ = input_data.size()
         pooled_data = self.linear(input_data)  # Apply linear transformation
-        pooled_data = F.softmax(pooled_data, dim=1)  # Apply softmax to get attention weights
-        pooled_data = torch.matmul(pooled_data.transpose(2, 3), input_data)  # Apply attention pooling
+        attention_scores = F.softmax(self.attention_weights(pooled_data), dim=1)  # Calculate attention scores
+        pooled_data = torch.matmul(attention_scores.transpose(2, 3), pooled_data)  # Apply attention pooling
         return pooled_data
 
 class DualTemporalGraphLearning(nn.Module):
     def __init__(self, srl_input_size, srl_hidden_size, gcn_input_size, gcn_hidden_size, lstm_hidden_size, num_classes):
         super(DualTemporalGraphLearning, self).__init__()
-        self.srl = SRLEncoding(srl_input_size, srl_hidden_size)
-        self.gcn = TemporalGraphRepresentationLearning(gcn_input_size, gcn_hidden_size, lstm_hidden_size)
-        self.linear = nn.Linear(lstm_hidden_size + gcn_hidden_size, num_classes)
+        self.srl = SignalRepresentationLearning(srl_input_size, srl_hidden_size)
+        self.gcn = TemporalGraphRepresentationLearning(gcn_input_size, gcn_hidden_size, lstm_hidden_size, num_classes)
 
     def forward(self, raw_bold_signals, coarsened_graphs):
         srl_output = self.srl(raw_bold_signals)
-        gcn_output = self.gcn(coarsened_graphs)
-        fused_output = torch.cat((srl_output, gcn_output), dim=1)  # Concatenate outputs
-        output = self.linear(fused_output)  # Linear layer for classification
-        return output
+        gcn_output = self.gcn(coarsened_graphs, srl_output)
+        return gcn_output
 
-class SRLEncoding(nn.Module):
+class SignalRepresentationLearning(nn.Module):
     def __init__(self, input_size, hidden_size):
-        super(SRLEncoding, self).__init__()
-        self.linear = nn.Linear(input_size, hidden_size)
+        super(SignalRepresentationLearning, self).__init__()
+        self.conv = nn.Conv1d(input_size, hidden_size, kernel_size=3, padding=1)
 
-    def forward(self, raw_bold_signals):
-        return F.relu(self.linear(raw_bold_signals))
+    def forward(self, input_data):
+        conv_output = F.relu(self.conv(input_data.transpose(1, 2)))  # Apply 1D convolution
+        return conv_output.transpose(1, 2)  # Transpose back to (batch_size, seq_len, hidden_size)
 
 class TemporalGraphRepresentationLearning(nn.Module):
-    def __init__(self, input_size, hidden_size, lstm_hidden_size):
+    def __init__(self, input_size, hidden_size, lstm_hidden_size, num_classes):
         super(TemporalGraphRepresentationLearning, self).__init__()
-        self.gcn = GCN(input_size, hidden_size)
+        self.gcn = GraphConvolution(input_size, hidden_size)
         self.lstm = nn.LSTM(hidden_size, lstm_hidden_size, batch_first=True)
+        self.fc = nn.Linear(lstm_hidden_size, num_classes)
 
-    def forward(self, coarsened_graphs):
-        gcn_output = self.gcn(coarsened_graphs)
-        _, (h_n, _) = self.lstm(gcn_output)  # Apply LSTM
-        lstm_output = h_n[-1]  # Extract final hidden state
-        return lstm_output
+    def forward(self, input_graphs, srl_embeddings):
+        # Apply graph convolution
+        gcn_output = self.gcn(input_graphs)
 
-class GCN(nn.Module):
-    def __init__(self, input_size, hidden_size):
-        super(GCN, self).__init__()
-        self.linear = nn.Linear(input_size, hidden_size)
+        # LSTM input shape: (batch_size, sequence_length, hidden_size)
+        lstm_input = gcn_output.unsqueeze(1)  # Add time dimension
+        lstm_output, _ = self.lstm(lstm_input)
 
-    def forward(self, coarsened_graphs):
-        return F.relu(self.linear(coarsened_graphs))
+        # Take the last output of LSTM
+        lstm_output = lstm_output[:, -1, :]
+
+        # Final classification layer
+        output = self.fc(lstm_output)
+        return output
+
+class GraphConvolution(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(GraphConvolution, self).__init__()
+        self.linear = nn.Linear(input_size, output_size)
+
+    def forward(self, input_graph):
+        # Apply linear transformation
+        output_graph = self.linear(input_graph)
+        return output_graph
