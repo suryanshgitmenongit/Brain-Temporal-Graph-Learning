@@ -1,6 +1,6 @@
 # BrainTGL: Temporal Graph Learning for Brain Networks
 
-This repository contains an implementation of the architecture of the BrainTGL model, a temporal graph learning framework for analyzing brain networks based on resting-state functional MRI (rs-fMRI) data. BrainTGL leverages graph convolutional networks (GCNs) and recurrent neural networks (RNNs) to capture both spatial and temporal dynamics in brain networks, enabling tasks such as brain disease classification and subtype identification.
+This repository contains an implementation of the architecture of the BrainTGL model, a temporal graph learning framework for analyzing brain networks based on resting-state functional MRI (rs-fMRI) data. BrainTGL leverages graph convolutional networks (GCNs) and recurrent neural networks (RNNs) to capture both spatial and temporal dynamics in brain networks, enabling tasks such as brain disease classification and subtype identification. 
 
 ## Overview
 
@@ -10,12 +10,6 @@ BrainTGL operates on rs-fMRI data, which provides a time series of brain activit
 
 - `model.py`: Contains the source code for the BrainTGL model implementation.
 - `README.md`: This file providing an overview of the repository.
-
-## Requirements
-
-- Python 3.x
-- PyTorch
-- NumPy
 
 ## Usage
 
